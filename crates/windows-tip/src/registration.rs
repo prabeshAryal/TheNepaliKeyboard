@@ -92,10 +92,15 @@ fn register_with_tsf(module_path: &Path) -> Result<()> {
         let profiles: ITfInputProcessorProfiles =
             CoCreateInstance(&CLSID_TF_InputProcessorProfiles, None, CLSCTX_INPROC_SERVER)
                 .context("failed to create ITfInputProcessorProfiles")?;
-        profiles
-            .Register(&CLSID_TEXT_SERVICE)
-            .ok()
-            .context("failed to register TIP with TSF")?;
+
+        if let Err(e) = profiles.Register(&CLSID_TEXT_SERVICE) {
+            anyhow::bail!(
+                "ITfInputProcessorProfiles::Register failed for CLSID {} (error: {})",
+                clsid_string(),
+                e
+            );
+        }
+
         profiles
             .AddLanguageProfile(
                 &CLSID_TEXT_SERVICE,
@@ -106,11 +111,12 @@ fn register_with_tsf(module_path: &Path) -> Result<()> {
                 ICON_INDEX,
             )
             .ok()
-            .context("failed to add Nepali language profile")?;
+            .context("ITfInputProcessorProfiles::AddLanguageProfile failed")?;
 
         let category_mgr: ITfCategoryMgr =
             CoCreateInstance(&CLSID_TF_CategoryMgr, None, CLSCTX_INPROC_SERVER)
                 .context("failed to create ITfCategoryMgr")?;
+
         category_mgr
             .RegisterCategory(
                 &CLSID_TEXT_SERVICE,
@@ -118,7 +124,7 @@ fn register_with_tsf(module_path: &Path) -> Result<()> {
                 &CLSID_TEXT_SERVICE,
             )
             .ok()
-            .context("failed to register keyboard TIP category")?;
+            .context("ITfCategoryMgr::RegisterCategory failed")?;
     }
 
     let hkcu = RegKey::predef(HKEY_CURRENT_USER);
