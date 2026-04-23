@@ -1,0 +1,8 @@
+[package]
+name = "host-api"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+core-engine = { path = "../core-engine" }
+serde.workspace = true

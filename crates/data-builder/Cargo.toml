@@ -1,0 +1,18 @@
+[package]
+name = "data-builder"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+anyhow.workspace = true
+bincode.workspace = true
+clap.workspace = true
+core-engine = { path = "../core-engine" }
+html-escape.workspace = true
+once_cell.workspace = true
+regex.workspace = true
+rusqlite.workspace = true
+unicode-normalization.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true
