@@ -15,8 +15,10 @@ anyhow.workspace = true
 clap.workspace = true
 core-engine = { path = "../core-engine" }
 host-api = { path = "../host-api" }
+once_cell.workspace = true
 thiserror.workspace = true
 windows = { workspace = true, features = [
+    "implement",
     "Win32_Foundation",
     "Win32_Globalization",
     "Win32_Graphics_Gdi",

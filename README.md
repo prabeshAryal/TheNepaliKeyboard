@@ -1,11 +1,17 @@
 # TheNepaliKeyboard
 
-An offline Nepali transliteration workspace in Rust.
+A production-ready offline Nepali transliteration keyboard for Windows, written in Rust.
 
-The current workspace already supports fast incremental transliteration, candidate ranking,
-highlighted selection, and IME-style candidate navigation in the demo host. It is not yet a
-packaged Windows input method that you can install from the language picker, but the engine and
-host contract are now shaped around that workflow.
+Works like **Google Input Tools** — type Latin text and get Nepali candidates inline. The
+transliteration engine runs entirely offline using a pre-built lexicon artifact derived from
+two Nepali dictionary databases (~640 MB of source data compressed to ~85 MB binary).
+
+## How It Works
+
+1. You type Latin characters (e.g. `namaste`, `prabesh`, `nepal`)
+2. The engine fuzzy-matches against 100k+ Nepali headwords in real time
+3. The top candidate appears inline in the text field as a TSF composition
+4. Press **Enter** or **Space** to commit, **Up/Down** to cycle candidates, **Escape** to cancel
 
 ## Workspace
 
@@ -13,7 +19,8 @@ host contract are now shaped around that workflow.
 - `crates/data-builder`: offline dictionary ingestion and artifact generation from SQLite sources
 - `crates/host-api`: stable host-facing API plus Windows TSF and Linux IME adapter scaffolding
 - `crates/cli`: demo REPL, adapter simulation, and lightweight benchmark harness
-- `crates/windows-tip`: Windows TIP registration/export crate plus `tipctl` install/status helper
+- `crates/windows-tip`: **Complete Windows TIP** — COM DLL implementing `ITfTextInputProcessor`,
+  `ITfKeyEventSink`, and `ITfCompositionSink` with `IClassFactory` for in-process activation
 
 ## Quick Start
 
@@ -53,29 +60,78 @@ cargo run -p cli -- bench --lexicon artifacts/nepali.lexicon.bin
 cargo run -p cli -- simulate --lexicon artifacts/nepali.lexicon.bin --platform windows --input prabesh
 ```
 
-## Windows TIP Tooling
+## Installing the Windows Input Method
 
-The repo now includes a Windows-only registration crate that prepares the project to be surfaced as a
-Text Services Framework (TSF) text service.
-
-Check status:
+### Build the DLL
 
 ```powershell
-cargo run -p windows-tip --bin tipctl -- status
+cargo build -p windows-tip --release
 ```
 
-Register the built DLL with the current user profile:
+This produces `target/release/windows_tip.dll`.
+
+### Deploy the lexicon
+
+Copy the lexicon artifact next to the DLL:
 
 ```powershell
-cargo run -p windows-tip --bin tipctl -- register --dll target\debug\windows_tip.dll
+Copy-Item artifacts/nepali.lexicon.bin target/release/nepali.lexicon.bin
 ```
 
-Unregister it:
+### Register with Windows
+
+```powershell
+cargo run -p windows-tip --bin tipctl -- register --dll target\release\windows_tip.dll
+```
+
+### Add the keyboard
+
+1. Open **Settings → Time & Language → Language & Region**
+2. Add **Nepali (Nepal)** if not already present
+3. Under Nepali, click **Language options → Add a keyboard**
+4. Select **Nepali Transliteration (The Nepali Keyboard)**
+
+### Unregister
 
 ```powershell
 cargo run -p windows-tip --bin tipctl -- unregister
 ```
 
-Current scope note: the registration and packaging side is in place, but the full in-proc TSF text
-service activation and composition UI layer still needs to be implemented before this behaves like a
-fully selectable Google Input Tools style Windows IME.
+### Check status
+
+```powershell
+cargo run -p windows-tip --bin tipctl -- status
+```
+
+## Architecture
+
+```
+┌──────────────────┐
+│   Windows TSF    │  ← ITfTextInputProcessor, ITfKeyEventSink
+│   (windows-tip)  │     ITfCompositionSink, IClassFactory
+└────────┬─────────┘
+         │  HostKeyEvent → HostAction
+┌────────▼─────────┐
+│    host-api       │  ← Platform adapter layer
+└────────┬─────────┘
+         │
+┌────────▼─────────┐
+│   core-engine     │  ← Transliteration, fuzzy matching, candidate ranking
+└────────┬─────────┘
+         │
+┌────────▼─────────┐
+│ nepali.lexicon.bin│  ← Pre-built binary artifact (bincode)
+└──────────────────┘
+         ▲
+┌────────┴─────────┐
+│   data-builder    │  ← Offline ingestion from db.sqlite + content.db
+└──────────────────┘
+```
+
+## Technical Details
+
+- **Lexicon**: ~100k unique Nepali headwords with romanization keys, glosses, and source weights
+- **Matching**: Prefix search on a sorted key index with edit-distance scoring and phonetic fallback
+- **Transliteration**: Rule-based Latin→Devanagari with multi-char digraph support (kh→ख, sh→श, etc.)
+- **TSF Integration**: Full COM DLL with `DllGetClassObject`/`DllRegisterServer` entry points
+- **Session**: Incremental keystroke processing with candidate navigation (up/down/commit)

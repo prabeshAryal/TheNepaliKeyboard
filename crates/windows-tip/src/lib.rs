@@ -1,10 +1,12 @@
+mod class_factory;
 mod config;
 mod registration;
+pub mod text_service;
 
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicIsize, Ordering};
 
-use windows::Win32::Foundation::{BOOL, CLASS_E_CLASSNOTAVAILABLE, E_FAIL, HINSTANCE, S_OK};
+use windows::Win32::Foundation::{BOOL, E_FAIL, HINSTANCE, S_OK};
 use windows::Win32::System::LibraryLoader::GetModuleFileNameW;
 use windows::Win32::System::SystemServices::DLL_PROCESS_ATTACH;
 
@@ -34,11 +36,11 @@ pub unsafe extern "system" fn DllCanUnloadNow() -> windows::core::HRESULT {
 
 #[unsafe(no_mangle)]
 pub unsafe extern "system" fn DllGetClassObject(
-    _rclsid: *const windows::core::GUID,
-    _riid: *const windows::core::GUID,
-    _object: *mut *mut core::ffi::c_void,
+    rclsid: *const windows::core::GUID,
+    riid: *const windows::core::GUID,
+    ppv: *mut *mut core::ffi::c_void,
 ) -> windows::core::HRESULT {
-    CLASS_E_CLASSNOTAVAILABLE.into()
+    class_factory::dll_get_class_object(rclsid, riid, ppv)
 }
 
 #[unsafe(no_mangle)]

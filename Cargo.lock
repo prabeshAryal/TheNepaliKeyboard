@@ -837,6 +837,7 @@ dependencies = [
  "clap",
  "core-engine",
  "host-api",
+ "once_cell",
  "thiserror",
  "windows",
  "windows-core",
